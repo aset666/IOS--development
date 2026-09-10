@@ -1,0 +1,47 @@
+import Foundation
+// 1
+var fruits = ["Apple", "Banana", "Orange", "Mango", "Grape"]
+print(fruits[2])
+// 2
+var favoriteNumbers: Set<Int> = [7, 14, 21, 42]
+favoriteNumbers.insert(99)
+print(favoriteNumbers)
+// 3
+let languages = ["Swift": 2014, "Python": 1991, "Java": 1995]
+print(languages["Swift"]!)
+// 4
+var colors = ["Red", "Blue", "Green", "Yellow"]
+colors[1] = "Purple"
+print(colors)
+// medium tasks
+// 1
+let set1: Set<Int> = [1, 2, 3, 4]
+let set2: Set<Int> = [3, 4, 5, 6]
+print(set1.intersection(set2))
+// 2
+var studentScores = ["Alice": 85, "Bob": 90, "Charlie": 78]
+studentScores.updateValue(95, forKey: "Bob")
+print(studentScores)
+// 3
+let arr1 = ["apple", "banana"]
+let arr2 = ["cherry", "date"]
+let merged = arr1 + arr2
+print(merged)
+// hard tasks
+// 1
+var countries = ["Russia": 144000000, "USA": 331000000, "China": 1400000000]
+countries["Germany"] = 83000000
+print(countries)
+// 2
+let animals1: Set<String> = ["cat", "dog"]
+let animals2: Set<String> = ["dog", "mouse"]
+let unionSet = animals1.union(animals2)
+let result = unionSet.subtracting(animals2)
+print(result)
+// 3
+let grades = [
+    "sh1ro": [4, 5, 5, 4],
+    "m0nesy": [5, 5, 5, 5],
+    "dzuigss": [3, 4, 4, 3]
+]
+print(grades["sh1ro"]![1])
