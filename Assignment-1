@@ -1,0 +1,23 @@
+import Foundation
+// step 1: personal info
+let currentYear=2026
+let firstName="Alex"
+let lastName="Johnson"
+let birthYear=2008
+let age=currentYear - birthYear // calculating age for bonus
+let isStudent=true
+let height=1.75
+let hometown="Austin" // added extra detail
+// step 2: hobbies
+let hobby="skateboarding"
+let numberOfHobbies=4
+let favoriteNumber=7
+let isHobbyCreative=false
+let favoriteSnack="chips" // added extra detail
+// bonus task
+let futureGoals="In the future, I want to become a professional iOS developer and make my own games"
+let petName="Rex" // using emoji in variable name for the bonus
+// step 3:summary
+let lifeStory="My name is \(firstName) \(lastName). I am \(age) years old, born in \(birthYear). I am currently a student from \(hometown). I enjoy \(hobby), which is not a creative hobby. I have \(numberOfHobbies) hobbies in total, and my favorite number is \(favoriteNumber). I love eating \(favoriteSnack) and hanging out with my dog \(petName). \(futureGoals)"
+// step 4: print
+print(lifeStory)
