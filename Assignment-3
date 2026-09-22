@@ -1,0 +1,318 @@
+import Foundation
+typealias Reading = (sensor: String, value: Int)
+func splitOnce(_ str: String, by separator: String) -> (String, String)? {
+    let parts = str.split(separator: Character(separator), maxSplits: 1, omittingEmptySubsequences: false)
+    guard parts.count == 2 else { return nil }
+    return (String(parts[0]), String(parts[1]))
+}
+let rawLog = [
+    "O2:87", "TEMP:22", "O2:85", "TEMP:abc", ":55",
+    "O2:90", "TEMP:-5", "RAD:10", "O2:-1", "TEMP:19",
+    "O2:88", "TEMP:25", "PRESS:100", "O2:82", "TEMP:20",
+    "GARBAGE_LINE"
+]
+class Tank {
+    var level: Int
+    init(level: Int) { self.level = level }
+}
+class Module {
+    var name: String
+    var oxygenTank: Tank?
+    init(name: String, oxygenTank: Tank? = nil) {
+        self.name = name
+        self.oxygenTank = oxygenTank
+    }
+}
+class CrewMember {
+    var name: String
+    var role: String
+    var priority: Int
+    var module: Module?
+    init(name: String, role: String, priority: Int, module: Module? = nil) {
+        self.name = name
+        self.role = role
+        self.priority = priority
+        self.module = module
+    }
+}
+let lab = Module(name: "Lab", oxygenTank: Tank(level: 40))
+let hab = Module(name: "Hab", oxygenTank: Tank(level: 12))
+let dock = Module(name: "Dock", oxygenTank: nil)
+let crew = [
+    CrewMember(name: "Timur", role: "Engineer", priority: 3, module: lab),
+    CrewMember(name: "Dana", role: "Scientist", priority: 4, module: dock),
+    CrewMember(name: "Aigerim", role: "Commander", priority: 1, module: hab),
+    CrewMember(name: "Nurlan", role: "Pilot", priority: 2, module: nil)
+]
+var roster: [String: CrewMember] = [:]
+for member in crew {
+    roster[member.name] = member
+}
+// ============================================================================
+// LEVEL 1 · Decoding Telemetry
+// ============================================================================
+// Task 1.1
+func parseReading(_ raw: String) -> Reading? {
+    guard let (sensor, valueStr) = splitOnce(raw, by: ":"),
+          !sensor.isEmpty,
+          let value = Int(valueStr),
+          value >= 0 || sensor == "TEMP" else {
+        return nil
+    }
+    return (sensor: sensor, value: value)
+}
+print("--- Task 1.1 Tests ---")
+print(parseReading("O2:87"))    // (sensor: "O2", value: 87)
+print(parseReading("TEMP:-12")) // (sensor: "TEMP", value: -12)
+print(parseReading("RAD:-1"))   // nil
+print(parseReading(":55"))      // nil
+// Task 1.2
+func parseLog(_ lines: [String]) -> (valid: [Reading], invalidCount: Int) {
+    var valid: [Reading] = []
+    var invalidCount = 0
+    for line in lines {
+        if let reading = parseReading(line) {
+            valid.append(reading)
+        } else {
+            invalidCount += 1
+        }
+    }
+    return (valid, invalidCount)
+}
+let parsedLog = parseLog(rawLog)
+let fragmentA = parsedLog.invalidCount
+print("--- Task 1.2 Test ---")
+print("Invalid count (Fragment A): \(fragmentA)")
+// ============================================================================
+// LEVEL 2 · Analysis
+// ============================================================================
+// Task 2.1
+func select(_ readings: [Reading], where isIncluded: (Reading) -> Bool) -> [Reading] {
+    var result: [Reading] = []
+    for r in readings {
+        if isIncluded(r) {
+            result.append(r)
+        }
+    }
+    return result
+}
+func values(of readings: [Reading]) -> [Int] {
+    var result: [Int] = []
+    for r in readings {
+        result.append(r.value)
+    }
+    return result
+}
+let o2Readings = select(parsedLog.valid) { $0.sensor == "O2" }
+print("--- Task 2.1 Test ---")
+print("O2 readings: \(o2Readings)")
+// Task 2.2
+func stats(of values: [Int]) -> (min: Int, max: Int, average: Double)? {
+    guard !values.isEmpty else { return nil }
+    var minVal = values[0]
+    var maxVal = values[0]
+    var sum = 0
+    for v in values {
+        if v < minVal { minVal = v }
+        if v > maxVal { maxVal = v }
+        sum += v
+    }
+    return (minVal, maxVal, Double(sum) / Double(values.count))
+}
+func stats(_ values: Int...) -> (min: Int, max: Int, average: Double)? {
+    stats(of: values)
+}
+print("--- Task 2.2 Tests ---")
+print(stats(3, 8, 1)) // (min: 1, max: 8, average: 4.0)
+print(stats())        // nil
+let o2Values = values(of: o2Readings)
+let o2Stats = stats(of: o2Values)
+let fragmentB = Int(o2Stats?.average ?? 0.0)
+print("Average O2 as Int (Fragment B): \(fragmentB)")
+// Task 2.3: Closure Ladder
+print("--- Task 2.3 Closure Ladder ---")
+let sorted1 = parsedLog.valid.sorted(by: { (a: Reading, b: Reading) -> Bool in return a.value > b.value })
+let sorted2 = parsedLog.valid.sorted(by: { a, b in return a.value > b.value })
+let sorted3 = parsedLog.valid.sorted(by: { a, b in a.value > b.value })
+let sorted4 = parsedLog.valid.sorted(by: { $0.value > $1.value })
+let sorted5 = parsedLog.valid.sorted { $0.value > $1.value }
+// Verify all match
+print("Ladder match: \(sorted1 == sorted2 && sorted2 == sorted3 && sorted3 == sorted4 && sorted4 == sorted5)")
+// ============================================================================
+// LEVEL 3 · Temperature Stabilization
+// ============================================================================
+// Task 3.1
+func heatUp(_ temp: Int) -> Int { return temp + 5 }
+func coolDown(_ temp: Int) -> Int { return temp - 3 }
+func hold(_ temp: Int) -> Int { return temp }
+func chooseProtocol(for temp: Int) -> (Int) -> Int {
+    if temp < 18 { return heatUp }
+    if temp > 24 { return coolDown }
+    return hold
+}
+print("--- Task 3.1 Test ---")
+print(chooseProtocol(for: 10)(10)) // 15
+print(chooseProtocol(for: 30)(30)) // 27
+// Task 3.2
+func runUntilStable(from start: Int, maxSteps: Int = 10) -> (finalTemp: Int, steps: Int, isStable: Bool) {
+    var current = start
+    var steps = 0
+    while (current < 18 || current > 24) && steps < maxSteps {
+        current = chooseProtocol(for: current)(current)
+        steps += 1
+    }
+    return (current, steps, current >= 18 && current <= 24)
+}
+print("--- Task 3.2 Tests ---")
+print(runUntilStable(from: 31))          // (finalTemp: 22, steps: 3, isStable: true)
+print(runUntilStable(from: -100, maxSteps: 5)) // (finalTemp: -75, steps: 5, isStable: false)
+let tempReadings = select(parsedLog.valid) { $0.sensor == "TEMP" }
+let tempValues = values(of: tempReadings)
+let lowestTemp = stats(of: tempValues)?.min ?? 0
+let stableResult = runUntilStable(from: lowestTemp)
+let fragmentC = stableResult.steps
+print("Steps for lowest TEMP (Fragment C): \(fragmentC)")
+// ============================================================================
+// LEVEL 4 · The Crew
+// ============================================================================
+// Task 4.1
+func oxygenLevel(of member: CrewMember) -> Int? {
+    return member.module?.oxygenTank?.level
+}
+print("--- Task 4.1 Test ---")
+print(oxygenLevel(of: crew[0])) // 40
+print(oxygenLevel(of: crew[3])) // nil
+
+// Task 4.2
+func status(of member: CrewMember) -> String {
+    guard let level = oxygenLevel(of: member) else {
+        let location = member.module?.name ?? "open space"
+        return "\(member.name): no data (\(location))"
+    }
+    return level < 20 ? "\(member.name): \(level)% CRITICAL" : "\(member.name): \(level)% OK"
+}
+print("--- Task 4.2 Test ---")
+for member in crew {
+    print(status(of: member))
+}
+// Task 4.3
+@discardableResult
+func transferOxygen(from source: inout Int, to target: inout Int, amount: Int) -> Int {
+    guard amount > 0 else { return 0 }
+    let actualTransfer = min(amount, source, 100 - target)
+    source -= actualTransfer
+    target += actualTransfer
+    return actualTransfer
+}
+print("--- Task 4.3 Test ---")
+// Safe mutation of optional properties without '!'
+if var labTank = lab.oxygenTank, var habTank = hab.oxygenTank {
+    let transferred = transferOxygen(from: &labTank.level, to: &habTank.level, amount: 30)
+    lab.oxygenTank = labTank
+    hab.oxygenTank = habTank
+    print("Transferred: \(transferred) units")
+}
+let fragmentD = hab.oxygenTank?.level ?? 0
+print("Hab oxygen after transfer (Fragment D): \(fragmentD)")
+// Task 4.4
+func evacuationOrder(_ names: String..., roster: [String: CrewMember]) -> [String] {
+    var found: [CrewMember] = []
+    for name in names {
+        guard let member = roster[name] else {
+            print("Unknown crew member: \(name)")
+            continue
+        }
+        found.append(member)
+    } 
+    // Simple bubble sort to avoid forbidden higher-order functions
+    for i in 0..<found.count {
+        for j in i + 1..<found.count {
+            if found[j].priority < found[i].priority {
+                let temp = found[i]
+                found[i] = found[j]
+                found[j] = temp
+            }
+        }
+    }
+    
+    var result: [String] = []
+    for member in found {
+        result.append(member.name)
+    }
+    return result
+}
+print("--- Task 4.4 Test ---")
+print(evacuationOrder("Dana", "Ghost", "Aigerim", "Timur", roster: roster))
+// ============================================================================
+// LEVEL 5 · The Saboteur's Logbook
+// ============================================================================
+func reportOxygen(for member: CrewMember) -> String {
+    guard let level = oxygenLevel(of: member) else {
+        return "\(member.name): no data"
+    }
+    return "\(member.name): \(level)%"
+}
+func firstCritical(in crew: [CrewMember]) -> String? {
+    for member in crew {
+        if let level = oxygenLevel(of: member), level < 20 {
+            return member.name // Returns the FIRST critical member immediately
+        }
+    }
+    return nil
+}
+print("--- Task 5 Test (Logic Bug Fix) ---")
+// Test proving logic bug is fixed: Create a crew where NO ONE is critical.
+// Old code would crash on `return result!`. New code safely returns nil.
+let safeCrew = [CrewMember(name: "SafePerson", role: "Test", priority: 1, module: Module(name: "Test", oxygenTank: Tank(level: 50)))]
+print("First critical in safe crew: \(firstCritical(in: safeCrew) ?? "No critical members found")")
+// ============================================================================
+// FINALE: The Launch Code
+// ============================================================================
+let launchCode = "\(fragmentA)-\(fragmentB)-\(fragmentC)-\(fragmentD)"
+print("\n========================================")
+print("LAUNCH CODE: \(launchCode)")
+print("========================================\n")
+// ============================================================================
+// DEFENSE QUESTIONS
+// ============================================================================
+
+/*
+ 1. How does guard let differ from if let beyond syntax?
+    - `guard let` binds the unwrapped variable to the current scope (not just inside the block) and requires an early exit (return, break, throw, continue) in the `else` block. This prevents the "pyramid of doom" (deeply nested code) that occurs when chaining multiple `if let` statements.
+ 
+ 2. Why can't you call stats(someArray) where someArray: [Int]?
+    - The variadic function `stats(_ values: Int...)` expects a comma-separated list of Int arguments, not a single Array argument. To pass an array to it, you must use the spread operator: `stats(someArray...)`, or call the array-specific version: `stats(of: someArray)`.
+ 
+ 3. Why doesn't transferOxygen(from: &x, to: &x, amount: 5) compile?
+    - Swift explicitly prohibits passing the same variable as multiple `inout` arguments in a single function call. This prevents overlapping memory access and undefined behavior (memory corruption), as the compiler cannot guarantee the order of reads/writes to the same memory location.
+ 
+ 4. Why doesn't oxygenLevel(of: dana) ?? "no data" compile?
+    - `oxygenLevel` returns an `Int?`. The nil-coalescing operator `??` requires both operands to be of the same type (or the right side must be convertible to the unwrapped type). Since `"no data"` is a `String`, it cannot be combined with `Int?`. You would need to map the optional to a String first.
+ 
+ 5. What is the full type of the function chooseProtocol itself?
+    - The full type is `(Int) -> ((Int) -> Int)`. It reads as: "A function that takes an Int (temperature) and returns another function, which itself takes an Int and returns an Int (the stabilization action)".
+*/
+// ============================================================================
+// BONUS
+// ============================================================================
+func makeAlarm(threshold: Int) -> (Int) -> Bool {
+    var count = 0
+    return { level in
+        if level < threshold {
+            count += 1
+            print("Alarm #\(count)")
+            return true
+        }
+        return false
+    }
+}
+print("--- Bonus Test ---")
+let alarm = makeAlarm(threshold: 20)
+print(alarm(12)) // Alarm #1 \n true
+print(alarm(40)) // false
+print(alarm(5))  // Alarm #2 \n true
+/*
+ BONUS EXPLANATION:
+ Where does the counter physically live? 
+ When a closure captures a variable from its surrounding scope, the Swift compiler allocates that variable on the heap (inside a hidden reference-type "box" or capture context). This ensures the variable persists in memory as long as the closure itself exists, even after the original function (`makeAlarm`) has returned and its stack frame has been destroyed.
+*/
