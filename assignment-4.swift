@@ -55,7 +55,6 @@ print("ALMA-7 recorder online: \(rawManifest.count) manifest lines, \(deckReadin
 
 // MARK: Level 1 · The Deck Register
 
-// 1.1
 enum Deck: String, CaseIterable {
     case bridge, lab, cargo, medbay, engine
     
@@ -75,7 +74,6 @@ for deck in Deck.allCases {
     print("\(deck.rawValue): priority \(deck.evacuationPriority)")
 }
 
-// 1.2
 enum AlarmLevel: Int {
     case green = 0, yellow, orange, red
     
@@ -93,7 +91,6 @@ print("Alarm 4000kg: \(AlarmLevel.level(forTotalMass: 4000))")
 
 // MARK: Level 2 · The Manifest
 
-// 2.1
 enum ManifestEntry {
     case crate(id: Int, massKg: Int)
     case container(code: String, massKg: Int)
@@ -101,7 +98,6 @@ enum ManifestEntry {
     case unknown(raw: String)
 }
 
-// 2.2
 func parseEntry(_ line: String) -> ManifestEntry {
     let parts = fields(line)
     guard !parts.isEmpty else { return .unknown(raw: line) }
@@ -136,7 +132,6 @@ func parseEntry(_ line: String) -> ManifestEntry {
     }
 }
 
-// 2.3
 func mass(of entry: ManifestEntry) -> Int {
     switch entry {
     case .crate(_, let massKg):
@@ -173,7 +168,6 @@ let A = totalMass
 
 // MARK: Level 3 · Crew Snapshots
 
-// 3.1
 struct CrewSnapshot {
     let name: String
     var deck: Deck
@@ -197,7 +191,6 @@ struct CrewSnapshot {
     }
 }
 
-// 3.2
 var crewRoster: [CrewSnapshot] = []
 
 for record in crewData {
@@ -214,7 +207,6 @@ for member in crewRoster {
     print("\(member.name) on \(member.deck.rawValue) with O2: \(member.oxygen)%")
 }
 
-// 3.3 Value-semantics demonstration
 print("\n--- VALUE SEMANTICS DEMO ---")
 
 var originalSnap = CrewSnapshot.rookie(named: "TestCopy")
@@ -239,15 +231,11 @@ print("3. Inout param: After func call Original O2=\(inoutSnap.oxygen) (should b
 
 // MARK: Level 4 · The Teleport Pod
 
-// 4.1
 final class TeleportPod {
     let id: String
     var chargeLevel: Int
     var occupant: CrewSnapshot?
     
-    // Классы не получают memberwise initializer автоматически,
-    // потому что они поддерживают наследование и двухфазную инициализацию.
-    // Struct получает его бесплатно, так как это простое хранилище значений.
     init(id: String, chargeLevel: Int) {
         self.id = id
         self.chargeLevel = chargeLevel
@@ -279,7 +267,6 @@ final class TeleportPod {
     }
 }
 
-// 4.2 Charge ledger
 print("\n--- TELEPORT POD LEDGER ---")
 let pod = TeleportPod(id: "P-1", chargeLevel: 100)
 
@@ -313,7 +300,6 @@ print("After empty fire: Charge = \(pod.chargeLevel)")
 
 let C = pod.chargeLevel
 
-// 4.3 Reference-semantics demonstration
 print("\n--- REFERENCE SEMANTICS DEMO ---")
 let refPodA = TeleportPod(id: "Ref-A", chargeLevel: 100)
 let refPodB = refPodA
@@ -329,7 +315,6 @@ print("Snap RefTest oxygen after changing copy: \(valSnapA.oxygen) (should be 10
 
 // MARK: Level 5 · Station Systems
 
-// 5.1
 final class Station {
     let callSign: String
     
@@ -395,7 +380,6 @@ do {
     print("Accessing diagnostics second time:")
     _ = station.fullDiagnostics
     
-    // 5.2 Clamp trap
     print("\n--- CLAMP TRAP ---")
     station.hullIntegrity = 130
     print("Set to 130 -> Actual: \(station.hullIntegrity)")
@@ -412,38 +396,17 @@ do {
 
 // MARK: Level 6 · Incident Reports
 
-/*
- REPORT 1 ANALYSIS
- Expected: Crew members lose 10 oxygen.
- Actual: Roster remains unchanged.
- Rule: Structs have value semantics. 'for var member' creates a COPY.
- Fix: Use index-based loop.
- */
 var fixedRoster = crewRoster
 for i in 0..<fixedRoster.count {
     fixedRoster[i].oxygen -= 10
 }
 print("\nReport 1 Fixed: First member O2 is now \(fixedRoster[0].oxygen)")
 
-/*
- REPORT 2 ANALYSIS
- Expected: podA stays at 100.
- Actual: podA becomes 0.
- Rule: Classes have reference semantics. podB points to same instance.
- Fix: Create new TeleportPod manually if independent copy needed.
- */
 let fixedPodA = TeleportPod(id: "Fix-A", chargeLevel: 100)
 let fixedPodB = TeleportPod(id: "Fix-B", chargeLevel: fixedPodA.chargeLevel)
 fixedPodB.chargeLevel = 0
 print("Report 2 Fixed: PodA charge is \(fixedPodA.chargeLevel)")
 
-/*
- REPORT 3 ANALYSIS
- Expected: Add entry to logbook.
- Actual: Compiler error.
- Rule: Struct methods cannot modify properties unless marked 'mutating'.
- Fix: Add 'mutating' keyword to add(_:).
- */
 struct FixedLogbook {
     var entries: [String] = []
     mutating func add(_ entry: String) {
@@ -451,14 +414,6 @@ struct FixedLogbook {
     }
 }
 
-/*
- REPORT 4 ANALYSIS
- Expected: Both assignments work or both fail.
- Actual: snapshot.oxygen = 40 fails. pod.chargeLevel = 10 works.
- Rule: For structs, 'let' freezes the ENTIRE value including all properties.
-       For classes, 'let' only freezes the REFERENCE (pointer), not the object's internal state.
- Fix: Change 'let snapshot' to 'var snapshot'.
- */
 var fixedSnapshot = CrewSnapshot.rookie(named: "Dana")
 fixedSnapshot.oxygen = 40
 let fixedPod = TeleportPod(id: "Fix-D", chargeLevel: 50)
@@ -468,13 +423,9 @@ fixedPod.chargeLevel = 10
 // MARK: Level 7 · Sealing the Black Box
 
 final class FlightRecorder {
-    // private: Blocks external access to raw storage entirely
     private var _entries: [String] = []
-    
-    // private(set): Blocks external code from unsealing the recorder
     private(set) var isSealed = false
     
-    // fileprivate: Allows free function in same file to access formatted data
     fileprivate var rawTranscript: String {
         var result = ""
         for e in _entries { result += "\(e)\n" }
@@ -503,6 +454,7 @@ blackBox.seal()
 blackBox.add("This should not appear")
 print("\n--- BLACK BOX ---")
 print(auditTranscript(of: blackBox))
+
 // MARK: Finale · Integrity Code
 
 let D = AlarmLevel.level(forTotalMass: A).rawValue
@@ -515,6 +467,7 @@ print("\nINTEGRITY CODE: \(integrityCode)")
 func areSamePod(_ p1: TeleportPod?, _ p2: TeleportPod?) -> Bool {
     return p1 === p2
 }
+
 print("\n--- BONUS LIFETIME ---")
 do {
     let tempPod = TeleportPod(id: "Temp-Pod", chargeLevel: 50)
@@ -523,4 +476,37 @@ do {
 }
 print("Outside do block")
 
- */
+
+// MARK: - ================= DEFENSE QUESTIONS =================
+/*
+1. Why did CrewSnapshot get an initializer for free and TeleportPod did not?
+   Structs automatically receive a memberwise initializer if they don't define custom ones.
+   Classes do not, because class initialization involves inheritance chains, two-phase safety checks,
+   and potential overrides, making automatic generation unsafe or ambiguous.
+
+2. What does `mutating` do to self, and why do classes never need it?
+   `mutating` allows a struct method to replace `self` or modify stored properties.
+   Since structs are value types, methods operate on copies by default.
+   Classes are reference types; methods always modify the shared instance directly, so no keyword is needed.
+
+3. In Report 4 both values are `let`. What exactly does `let` freeze for a struct, and what does it freeze for a class?
+   For a struct: `let` freezes the entire value. No property can change.
+   For a class: `let` freezes only the reference (the pointer). The object's internal `var` properties remain mutable.
+
+4. Why must a lazy property be var? When does lazy change behaviour, not just performance?
+   It must be `var` because its initial value is set AFTER initialization completes (mutation).
+   Behaviour change: If the lazy property has side effects (e.g., printing, network calls) or depends on
+   other properties that change post-init, making it lazy ensures those side effects happen on first access,
+   not during init. Without lazy, the side effect happens immediately during construction.
+
+5. private vs fileprivate: where in your FlightRecorder would private be too strict?
+   `rawTranscript` needs to be `fileprivate`. If it were `private`, the free function
+   `auditTranscript(of:)` could not access it, even though it's in the same file.
+   `private` restricts access to the enclosing declaration only.
+
+Bonus. On which line does deinit fire, and why can't === be used on CrewSnapshot?
+   `deinit` fires at the closing brace of the `do` block, because that is when the last strong reference
+   (`aliasPod`) goes out of scope and the reference count drops to zero.
+   `===` compares memory addresses of class instances. Structs have no stable memory address as they are
+   copied by value, so identity comparison is meaningless.
+*/
